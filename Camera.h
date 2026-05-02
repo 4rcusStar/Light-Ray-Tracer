@@ -8,6 +8,7 @@
 #include "Color.h"
 #include "Constants.h"
 #include "Hittable.h"
+#include "Material.h"
 #include "MathUtils.h"
 
 class Camera
@@ -66,8 +67,13 @@ private:
         HitRecord record;
         if (world.hit(r,Interval(.0001f,infinity),record))
         {
-            Vector3f direction{record.normal+Vector3f::randomUnitVector()};
-            return 0.5*rayColor(Ray(record.p,direction),depth-1,world);
+            Ray scattered;
+            Color attenuation{1.f};
+            if (record.mat->scatter(r,record,attenuation,scattered))
+            {
+                return attenuation*rayColor(scattered,depth-1,world);
+            }
+            return Color{0,0,0};
         }
         Vector3f unitDirection{r.direction().normalized()};
         auto a = 0.5f*(unitDirection.y + 1.0f);
@@ -86,6 +92,7 @@ public:
         std::ofstream ofs("output.ppm");
         ofs<< "P3\n" << imageWidth << " " << imageHeight << "\n255\n";
 
+        const int lineBreak = 10;
         for (int j{0};j<imageHeight;++j)
         {
             std::cout<<"Rendering line "<<j<<" "<<j*100./(imageHeight-1)<<"%"<<std::endl;
@@ -98,6 +105,8 @@ public:
                     pixelColor+=rayColor(ray,maxDepth,world);
                 }
                 writeColor(ofs,pixelSamplesScale*pixelColor);
+                if ((i + 1) % lineBreak == 0)
+                    ofs << '\n';
             }
             ofs<<std::endl;
         }

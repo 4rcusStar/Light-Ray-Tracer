@@ -4,15 +4,19 @@
 
 #ifndef SOFTRAYTRACER_HITTABLE_H
 #define SOFTRAYTRACER_HITTABLE_H
+#include <memory>
+
 #include "Interval.h"
 #include "Ray.h"
 #include "Vector3f.hpp"
+class Material;
 struct  HitRecord
 {
     Vector3f p{0};
     float t{0};
     Vector3f normal{0};///法线总是朝光线相反的方向
     bool isFrontFace{false};///是否指向面外侧
+    std::shared_ptr<Material> mat{nullptr};
 public:
     ///
     /// @param r 光线

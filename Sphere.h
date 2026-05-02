@@ -5,6 +5,7 @@
 #ifndef SOFTRAYTRACER_SPHERE_H
 #define SOFTRAYTRACER_SPHERE_H
 #include <cmath>
+#include <utility>
 
 #include "Hittable.h"
 
@@ -13,8 +14,11 @@ class Sphere:public Hittable
 private:
     Vector3f center;
     float radius;
+    std::shared_ptr<Material> mat;
 public:
-    Sphere(Vector3f center, float radius):center(center),radius(radius){};
+    Sphere(Vector3f center, float radius,std::shared_ptr<Material> mat):center(center),radius(radius),mat(std::move(mat))
+    {
+    };
 
     /// hit检测
     /// @param r 光线
@@ -43,6 +47,7 @@ public:
 
         hitRecord.t = root;
         hitRecord.p = r.at(hitRecord.t);
+        hitRecord.mat = mat;
         auto outwardNormal = (hitRecord.p - center)/radius;
         hitRecord.setFaceNormal(r, outwardNormal);
 
