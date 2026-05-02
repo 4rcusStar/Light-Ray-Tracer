@@ -4,12 +4,13 @@
 
 #ifndef SOFTRAYTRACER_INTERVAL_H
 #define SOFTRAYTRACER_INTERVAL_H
+#include "Constants.h"
 
 struct Interval
 {
 public:
     float min,max;
-    Interval():min(+INFINITY),max(-INFINITY){}//默认为空
+    Interval():min(+infinity),max(-infinity){}//默认为空
     Interval(float min,float max):min(min),max(max){}
     [[nodiscard]] float size() const
     {
@@ -23,9 +24,14 @@ public:
     {
         return min<x && x<max;
     }
-
+    [[nodiscard]] float clamp(float x)const
+    {
+        if (x<min) return min;
+        if (x>max) return max;
+        return x;
+    }
     static const Interval empty,universe;
 };
-const Interval Interval::empty{+INFINITY,-INFINITY};
-const Interval Interval::universe{-INFINITY,+INFINITY};
+const Interval Interval::empty{+infinity,-infinity};
+const Interval Interval::universe{-infinity,+infinity};
 #endif //SOFTRAYTRACER_INTERVAL_H

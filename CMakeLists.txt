@@ -16,7 +16,7 @@ add_executable(
         Hittable.h
         Sphere.h
         HittableList.h
-        ../SoftRasterizer/src/math/Constants.h
         Interval.h
         Camera.h
+        Material.h
 )

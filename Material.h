@@ -1,0 +1,8 @@
+//
+// Created by ASUS on 2026/5/3.
+//
+
+#ifndef SOFTRAYTRACER_MATERIAL_H
+#define SOFTRAYTRACER_MATERIAL_H
+
+#endif //SOFTRAYTRACER_MATERIAL_H
