@@ -14,33 +14,80 @@
 class Camera
 {
 private:
-    int imageHeight;
+    int imageHeight{0};
     Vector3f center{0};
     Vector3f pixelUpperLeft{0};
     Vector3f dU{0};
     Vector3f dV{0};
-    float focalLength{1.f};
     float viewportWidth{-1};
     float viewportHeight{-1};
     float pixelSamplesScale{0};//一个像素中每次采样得到颜色的系数=1/采样数
+
+    Vector3f u{0},v{0},w{0};//CameraFrame Basis Vectors
+
+    Vector3f defocusDiskU{1,0,0};
+    Vector3f defocusDiskV{0,-1,0};
+
     void initialize()
     {
-        imageHeight=static_cast<int>(imageWidth/aspectRatio)<1? 1:static_cast<int>(imageWidth/aspectRatio);
+    // ==================== 1. 图像尺寸计算 ====================
+    // 根据图像宽度和宽高比计算图像高度，至少为1像素
+    imageHeight = static_cast<int>(imageWidth / aspectRatio) < 1
+                  ? 1
+                  : static_cast<int>(imageWidth / aspectRatio);
 
-        viewportHeight = 2.f;
-        viewportWidth = viewportHeight*static_cast<float>(imageWidth)/imageHeight;
+    // ==================== 2. 相机坐标系建立 ====================
+    // 计算视口在世界空间中的尺寸
+    // 注：此处依赖 u, v, w 已在外部初始化，但实际应在下方坐标系建立后使用
+    auto fovTheta{MathUtils::degreesToRadians(verticalFov)};  // 垂直视场角转弧度
+    auto h{std::tan(fovTheta / 2)};                           // 半视场角的正切值
 
-        Vector3f viewportU{viewportWidth,0,0};
-        Vector3f viewportV{0,-viewportHeight,0};
-        dU= viewportU/imageWidth;
-        dV= viewportV/imageHeight;
+    // 视口高度 = 2 * h * 焦距（基于相似三角形）
+    viewportHeight = 2 * h * focusDistance;
+    // 视口宽度 = 视口高度 * (图像宽度/图像高度)，保持像素比例
+    viewportWidth = viewportHeight * static_cast<float>(imageWidth) / imageHeight;
 
-        pixelUpperLeft=center-Vector3f{0,0,focalLength}-viewportU/2-viewportV/2;
-        pixelUpperLeft+={0.5f*dU+0.5f*dV};
+    // ==================== 3. 相机坐标系（UVW基底） ====================
+    center = lookFrom;                              // 相机位置（原点）
+    w = (lookFrom - lookAt).normalized();           // 视线反方向（指向相机后方）
+    u = (w.cross(vUp)).normalized();                // 相机右方向（垂直于w和世界向上方向）
+    v = w.cross(u);                                 // 相机上方向（正交于w和u，构成右手系）
 
-        pixelSamplesScale=1.f/samplesPerPixel;
+    // ==================== 4. 视口向量 ====================
+    // 视口在世界空间中的水平和垂直向量
+    Vector3f viewportU{viewportWidth * u};          // 视口宽度 * 相机右方向
+    Vector3f viewportV{-viewportHeight * v};        // 视口高度 * 相机下方向（图像坐标y轴向下）
+
+    // 每个像素在世界空间中的步长向量
+    dU = viewportU / imageWidth;                    // 水平方向每像素的偏移
+    dV = viewportV / imageHeight;                   // 垂直方向每像素的偏移
+
+    // ==================== 5. 视口左上角像素位置 ====================
+    // 视口平面位于 lookAt 处，但实际在相机前方 focalLength 处
+    // 视口中心在相机前方 focalLength 处
+    Vector3f viewportCenter = center - focusDistance * w;  // 沿视线方向前进 focalLength
+
+    // 视口左上角 = 视口中心 - 视口宽度/2 - 视口高度/2
+    pixelUpperLeft = viewportCenter - viewportU / 2 - viewportV / 2;
+
+    // 偏移到第一个像素的中心（像素坐标对应像素中心）
+     pixelUpperLeft += {0.5f * dU + 0.5f * dV};
+     auto defocusRadius{focusDistance*std::tan(MathUtils::degreesToRadians(defocusAngle/2))};
+     defocusDiskU = u*defocusRadius;
+     defocusDiskV = v*defocusRadius;
+
+    // ==================== 6. 采样缩放因子 ====================
+    // 每个像素颜色的平均系数（多采样平均）
+    pixelSamplesScale = 1.0f / samplesPerPixel;
+}
+
+    ///
+    /// @return 生成光圈内的随机一点
+    [[nodiscard]] Vector3f defocusDiskSample()const
+    {
+        auto p{Vector3f::randomInUnitDisk()};
+        return center + p.x*defocusDiskU + p.y*defocusDiskV;
     }
-
     ///
     /// @param i 像素x坐标
     /// @param j 像素y坐标
@@ -48,9 +95,9 @@ private:
     Ray getRay(int i,int j)
     {
         auto offset{sampleSquare()};
-        auto rayOrigin{center};
+        auto rayOrigin{defocusAngle<=0?center:defocusDiskSample()};
         auto pixelSample{pixelUpperLeft+ ((i+offset.x)*dU)+(j+offset.y)*dV};
-        auto rayDir{pixelSample-center};
+        auto rayDir{pixelSample-rayOrigin};
 
         return Ray{rayOrigin,rayDir};
     }
@@ -85,6 +132,13 @@ public:
     int imageWidth{400};
     int samplesPerPixel{10};
     int maxDepth{10};
+    float verticalFov{90};
+    Vector3f lookFrom{0,0,0};//相机位置
+    Vector3f lookAt{0,0,-1};//相机看向向量
+    Vector3f vUp{0,1,0};//相机顶
+    float defocusAngle{0};
+    float focusDistance{10};//焦距
+
     void render(const Hittable& world)
     {
         initialize();
@@ -112,4 +166,5 @@ public:
         }
     }
 };
+
 #endif //SOFTRAYTRACER_CAMERA_H

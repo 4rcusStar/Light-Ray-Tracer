@@ -7,7 +7,6 @@
 #include "Color.h"
 #include "Hittable.h"
 #include "Ray.h"
-
 class Material
 {
 public:
@@ -52,5 +51,31 @@ public:
         attenuation = _albedo;
         return scattered.direction().dot(hitRecord.normal)>0;
     }
+};
+class Dielectric: public Material
+{
+
+private:
+    float _refractionRate;
+public:
+    explicit Dielectric(float refractionRate):_refractionRate(refractionRate){};
+    bool scatter(const Ray &ray, const HitRecord &hitRecord, Color &attenuation, Ray &scattered) const override
+    {
+        attenuation={1,1,1};
+        float ri{hitRecord.isFrontFace?(1.f/_refractionRate):_refractionRate};
+        Vector3f unitDirection{ray.direction().normalized()};
+
+        Vector3f direction{0};
+        bool isTotalReflection{false};
+        direction = Vector3f::refract(unitDirection,hitRecord.normal,ri,isTotalReflection);
+        if (isTotalReflection)
+        {
+            direction = Vector3f::reflect(unitDirection,hitRecord.normal);
+        }
+
+        scattered = Ray(hitRecord.p,direction);
+        return true;
+    }
+
 };
 #endif //SOFTRAYTRACER_MATERIAL_H
